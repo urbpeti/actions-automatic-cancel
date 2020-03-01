@@ -14,3 +14,5 @@ jobs:
         echo "CI Started"
         sleep 1m
         echo "Sleep is over"
+    - name: Tests
+      run: make test

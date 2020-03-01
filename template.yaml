@@ -1,0 +1,33 @@
+AWSTemplateFormatVersion : '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Description: Github actions automatic cancel api
+Parameters:
+  ApiSecret:
+    Type: String
+  GithubToken:
+    Type: String
+  GithubOrg:
+    Type: String
+  GithubRepo:
+    Type: String
+
+Resources:
+  Api:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: go1.x
+      Handler: dist/handler/cancel
+      Timeout: 10
+      Environment:
+        Variables:
+          WEBHOOK_SECRET: !Ref ApiSecret
+          GITHUB_TOKEN: !Ref GithubToken
+          GITHUB_ORG: !Ref GithubOrg
+          GITHUB_REPO: !Ref GithubRepo
+      Events:
+        PushHandler:
+          Type: Api
+          Properties:
+            Path: '/'
+            Method: post
