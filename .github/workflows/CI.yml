@@ -15,4 +15,6 @@ jobs:
         sleep 1m
         echo "Sleep is over"
     - name: Tests
-      run: make test
+      run: |
+        touch .env
+        make test
