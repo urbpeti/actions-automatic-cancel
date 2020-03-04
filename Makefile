@@ -30,13 +30,10 @@ run:
 package: build
 	sam package --template-file $(TEMPLATE) --s3-bucket $(AWS_BUCKET_NAME) --output-template-file $(PACKAGED_TEMPLATE)
 
-	.PHONY: package
-package: build
-	sam package --template-file $(TEMPLATE) --s3-bucket $(AWS_BUCKET_NAME) --output-template-file $(PACKAGED_TEMPLATE)
-
 .PHONY: deploy
 deploy: package
 	sam deploy --stack-name $(AWS_STACK_NAME) \
+						 --region $(AWS_REGION) \
 						 --template-file $(PACKAGED_TEMPLATE) \
 						 --capabilities CAPABILITY_IAM \
 						 --parameter-overrides \

@@ -4,17 +4,31 @@ on: [push]
 
 jobs:
   build:
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
+      AWS_STACK_NAME: ${{ secrets.AWS_STACK_NAME }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_ACCESS_TOKEN }}
+      GITHUB_ORG: ${{ secrets.GITHUB_ORG }}
+      GITHUB_REPO: ${{ secrets.GITHUB_REPO }}
+      WEBHOOK_SECRET: ${{ secrets.WEBHOOK_SECRET }}
 
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
-    - name: Simulate long running
-      run: |
-        echo "CI Started"
-        sleep 1m
-        echo "Sleep is over"
-    - name: Tests
+    - name: Running tests
       run: |
         touch .env
-        make test
+        # make test
+    - name: Install Dependencies
+      run: |
+        PATH=$PATH:$HOME/.local/bin
+        python3 -m pip install -U pip setuptools wheel
+        python3 -m pip install -U pyyaml aws-sam-cli
+    - name: Deploy
+      run: |
+        PATH=$PATH:$HOME/.local/bin
+        make deploy
