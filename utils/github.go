@@ -12,7 +12,15 @@ import (
 
 // VerifyGithubWebhookRequest validate X-Hub-Signature
 func VerifyGithubWebhookRequest(req events.APIGatewayProxyRequest, secret string) error {
-	signature, err := hex.DecodeString(strings.Split(req.Headers["X-Hub-Signature"], "=")[1])
+	xHubSignature, ok := req.Headers["X-Hub-Signature"]
+	if !ok {
+		return fmt.Errorf("Missing signature")
+	}
+	signatureParts := strings.Split(xHubSignature, "=")
+	if len(signatureParts) < 2 {
+		return fmt.Errorf("Bad signature format")
+	}
+	signature, err := hex.DecodeString(signatureParts[1])
 	if err != nil {
 		return err
 	}
