@@ -31,7 +31,7 @@ package: build
 
 .PHONY: deploy
 deploy: package
-	sam deploy
+	sam deploy \
 		--stack-name $(AWS_STACK_NAME) \
 		--region $(AWS_REGION) \
 		--template-file $(PACKAGED_TEMPLATE) \
