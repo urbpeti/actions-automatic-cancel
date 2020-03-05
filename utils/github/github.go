@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -36,12 +37,14 @@ type API struct {
 	Token        string
 }
 
+const listRunsEndpointFormat = "https://api.github.com/repos/%s/%s/actions/runs"
+
 // MakeAPI creates the api
-func MakeAPI(token, organization, repository string) *API {
+func MakeAPI() *API {
 	return &API{
-		Organization: organization,
-		Repository:   repository,
-		Token:        token,
+		Organization: os.Getenv("GITHUB_ORG"),
+		Repository:   os.Getenv("GITHUB_REPO"),
+		Token:        os.Getenv("GITHUB_TOKEN"),
 	}
 }
 
@@ -74,7 +77,9 @@ func (api *API) CancelRun(run WorkflowRun) error {
 // ListWorkflows returns list of workflows
 func (api *API) ListWorkflows() ([]WorkflowRun, error) {
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", "https://api.github.com/repos/"+api.Organization+"/"+api.Repository+"/actions/runs", nil)
+	endpoint := fmt.Sprintf(listRunsEndpointFormat, api.Organization, api.Repository)
+
+	req, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +94,7 @@ func (api *API) ListWorkflows() ([]WorkflowRun, error) {
 		return nil, err
 	}
 
-	workflowRunRes, err := getWorkflowsFrom([]byte(body))
+	workflowRunRes, err := parseWorkflowsFrom([]byte(body))
 	if err != nil {
 		return nil, err
 	}
@@ -97,8 +102,8 @@ func (api *API) ListWorkflows() ([]WorkflowRun, error) {
 	return workflowRunRes.WorkflowRuns, nil
 }
 
-func getWorkflowsFrom(body []byte) (*WorkflowRunAPIResponse, error) {
-	var res = new(WorkflowRunAPIResponse)
+func parseWorkflowsFrom(body []byte) (WorkflowRunAPIResponse, error) {
+	res := WorkflowRunAPIResponse{}
 	err := json.Unmarshal(body, &res)
 	return res, err
 }

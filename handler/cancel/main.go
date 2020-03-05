@@ -22,11 +22,15 @@ type AutomaticCancel struct {
 	WebHookSecret string
 }
 
-// AutomaticCancel function
-func (canceler *AutomaticCancel) AutomaticCancel(runs []github.WorkflowRun) error {
+func sortRunsByCreatedAtDesc(runs []github.WorkflowRun) {
 	sort.Slice(runs, func(i, j int) bool {
 		return runs[i].CreatedAt.After(runs[j].CreatedAt)
 	})
+}
+
+// AutomaticCancel function
+func (canceler *AutomaticCancel) AutomaticCancel(runs []github.WorkflowRun) error {
+	sortRunsByCreatedAtDesc(runs)
 
 	seenBranch := make(map[string]bool)
 	for _, run := range runs {
@@ -39,7 +43,8 @@ func (canceler *AutomaticCancel) AutomaticCancel(runs []github.WorkflowRun) erro
 		if _, ok := seenBranch[branch]; ok {
 			err := canceler.GithubAPI.CancelRun(run)
 			if err != nil {
-				return err
+				log.Println(err.Error())
+				continue
 			}
 		} else {
 			seenBranch[branch] = true
@@ -53,19 +58,16 @@ func (canceler *AutomaticCancel) AutomaticCancel(runs []github.WorkflowRun) erro
 func (canceler *AutomaticCancel) HandleRequest(req events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	err := verifyRequest(req, canceler.WebHookSecret)
 	if err != nil {
-		log.Println(err.Error())
-		return events.APIGatewayProxyResponse{StatusCode: http.StatusBadRequest}, err
+		return events.APIGatewayProxyResponse{StatusCode: http.StatusBadRequest, Body: err.Error()}, nil
 	}
 
 	workflows, err := canceler.GithubAPI.ListWorkflows()
 	if err != nil {
-		fmt.Printf(err.Error())
-		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
+		return events.APIGatewayProxyResponse{}, err
 	}
 
 	err = canceler.AutomaticCancel(workflows)
 	if err != nil {
-		log.Printf(err.Error())
 		return events.APIGatewayProxyResponse{StatusCode: http.StatusInternalServerError}, err
 	}
 
@@ -93,7 +95,7 @@ func verifyPayload(secret string, payload, signature []byte) bool {
 
 func main() {
 	canceler := AutomaticCancel{
-		GithubAPI:     github.MakeAPI(os.Getenv("GITHUB_TOKEN"), os.Getenv("GITHUB_ORG"), os.Getenv("GITHUB_REPO")),
+		GithubAPI:     github.MakeAPI(),
 		WebHookSecret: os.Getenv("WEBHOOK_SECRET"),
 	}
 	lambda.Start(canceler.HandleRequest)
