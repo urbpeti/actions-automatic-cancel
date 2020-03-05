@@ -12,7 +12,7 @@ configure:
 
 .PHONY: clean
 clean:
-	@rm -rf dist
+	@rm -rf dist coverage.out packaged.yaml
 	@mkdir -p dist
 
 .PHONY: build
