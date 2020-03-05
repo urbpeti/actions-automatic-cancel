@@ -2,6 +2,7 @@ package github
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -54,12 +55,20 @@ func (api *API) CancelRun(run WorkflowRun) error {
 
 	req.Header.Add("Authorization", "token "+api.Token)
 	res, err := client.Do(req)
-	_, err = ioutil.ReadAll(res.Body)
 	if err != nil {
 		return err
 	}
 
-	return err
+	if res.StatusCode != http.StatusOK {
+		body, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			return err
+		}
+
+		return fmt.Errorf("Bad status code: %d \nBody: %s", res.StatusCode, body)
+	}
+
+	return nil
 }
 
 // ListWorkflows returns list of workflows
