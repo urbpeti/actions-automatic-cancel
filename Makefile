@@ -12,7 +12,7 @@ configure:
 
 .PHONY: clean
 clean:
-	@rm -rf dist coverage.out packaged.yaml
+	@rm -rf dist coverage.out $(PACKAGED_TEMPLATE)
 	@mkdir -p dist
 
 .PHONY: build
@@ -20,7 +20,6 @@ build: clean
 	@for dir in `ls handler`; do \
 		GOOS=linux go build -o dist/handler/$$dir github.com/urbpeti/actions-automatic-cancel/handler/$$dir; \
 	done
-	rm -f packaged.yaml
 
 .PHONY: run
 run:
