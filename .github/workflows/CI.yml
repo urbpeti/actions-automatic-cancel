@@ -22,7 +22,7 @@ jobs:
     - name: Running tests
       run: |
         touch .env
-        # make test
+        make test
     - name: Install Dependencies
       run: |
         PATH=$PATH:$HOME/.local/bin
