@@ -18,7 +18,7 @@ Resources:
     Properties:
       Runtime: go1.x
       Handler: dist/handler/cancel
-      Timeout: 10
+      Timeout: 30
       Environment:
         Variables:
           WEBHOOK_SECRET: !Ref ApiSecret
