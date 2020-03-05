@@ -1,4 +1,4 @@
-package github
+package lib
 
 import (
 	"encoding/json"
@@ -30,8 +30,8 @@ type IGithubAPI interface {
 	CancelRun(run WorkflowRun) error
 }
 
-// API struct
-type API struct {
+// GithubAPI struct
+type GithubAPI struct {
 	Organization string
 	Repository   string
 	Token        string
@@ -39,9 +39,9 @@ type API struct {
 
 const listRunsEndpointFormat = "https://api.github.com/repos/%s/%s/actions/runs"
 
-// MakeAPI creates the api
-func MakeAPI() *API {
-	return &API{
+// MakeGithubAPI creates the api
+func MakeGithubAPI() *GithubAPI {
+	return &GithubAPI{
 		Organization: os.Getenv("GITHUB_ORG"),
 		Repository:   os.Getenv("GITHUB_REPO"),
 		Token:        os.Getenv("GITHUB_TOKEN"),
@@ -49,7 +49,7 @@ func MakeAPI() *API {
 }
 
 // CancelRun cancels a running workflow
-func (api *API) CancelRun(run WorkflowRun) error {
+func (api *GithubAPI) CancelRun(run WorkflowRun) error {
 	client := &http.Client{}
 	req, err := http.NewRequest("POST", run.CancelURL, nil)
 	if err != nil {
@@ -75,7 +75,7 @@ func (api *API) CancelRun(run WorkflowRun) error {
 }
 
 // ListWorkflows returns list of workflows
-func (api *API) ListWorkflows() ([]WorkflowRun, error) {
+func (api *GithubAPI) ListWorkflows() ([]WorkflowRun, error) {
 	client := &http.Client{}
 	endpoint := fmt.Sprintf(listRunsEndpointFormat, api.Organization, api.Repository)
 

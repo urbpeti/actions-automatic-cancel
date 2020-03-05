@@ -2,49 +2,50 @@ include .env
 
 TEMPLATE = template.yaml
 PACKAGED_TEMPLATE = packaged.yaml
-
+	
 .PHONY: configure
 configure:
-  aws s3api create-bucket \
-    --bucket $(AWS_BUCKET_NAME) \
-    --region $(AWS_REGION) \
-    --create-bucket-configuration LocationConstraint=$(AWS_REGION)
+	aws s3api create-bucket \
+		--bucket $(AWS_BUCKET_NAME) \
+		--region $(AWS_REGION) \
+		--create-bucket-configuration LocationConstraint=$(AWS_REGION)
 
 .PHONY: clean
 clean:
-  @rm -rf dist coverage.out $(PACKAGED_TEMPLATE)
-  @mkdir -p dist
+	@rm -rf dist coverage.out $(PACKAGED_TEMPLATE)
+	@mkdir -p dist
 
 .PHONY: build
 build: clean
-  @for dir in `ls handler`; do \
-    GOOS=linux go build -o dist/handler/$$dir github.com/urbpeti/actions-automatic-cancel/handler/$$dir; \
-  done
+	@for dir in `ls handler`; do \
+		GOOS=linux go build -o dist/handler/$$dir github.com/urbpeti/actions-automatic-cancel/handler/$$dir; \
+	done
 
 .PHONY: run
 run:
-  sam local start-api
+	sam local start-api
 
 .PHONY: package
 package: build
-  sam package --template-file $(TEMPLATE) --s3-bucket $(AWS_BUCKET_NAME) --output-template-file $(PACKAGED_TEMPLATE)
+	sam package --template-file $(TEMPLATE) --s3-bucket $(AWS_BUCKET_NAME) --output-template-file $(PACKAGED_TEMPLATE)
 
 .PHONY: deploy
 deploy: package
-  sam deploy --stack-name $(AWS_STACK_NAME) \
-             --region $(AWS_REGION) \
-             --template-file $(PACKAGED_TEMPLATE) \
-             --capabilities CAPABILITY_IAM \
-             --parameter-overrides \
-              ApiSecret="$(WEBHOOK_SECRET)" \
-              GithubToken="$(GITHUB_TOKEN)" \
-              GithubOrg="$(GITHUB_ORG)" \
-              GithubRepo="$(GITHUB_REPO)"
+	sam deploy
+		--stack-name $(AWS_STACK_NAME) \
+		--region $(AWS_REGION) \
+		--template-file $(PACKAGED_TEMPLATE) \
+		--capabilities CAPABILITY_IAM \
+		--parameter-overrides \
+			ApiSecret="$(WEBHOOK_SECRET)" \
+			GithubToken="$(GITHUB_TOKEN)" \
+			GithubOrg="$(GITHUB_ORG)" \
+			GithubRepo="$(GITHUB_REPO)"
 
 .PHONY: teardown
 teardown:
-  aws cloudformation delete-stack --stack-name $(AWS_STACK_NAME)
+	aws cloudformation delete-stack --stack-name $(AWS_STACK_NAME)
 
 .PHONY: test
 test:
-    go test ./... --cover
+		go test ./... --cover
