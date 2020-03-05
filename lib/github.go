@@ -62,7 +62,7 @@ func (api *GithubAPI) CancelRun(run WorkflowRun) error {
 		return err
 	}
 
-	if res.StatusCode != http.StatusOK {
+	if res.StatusCode != http.StatusAccepted {
 		body, err := ioutil.ReadAll(res.Body)
 		if err != nil {
 			return err

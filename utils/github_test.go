@@ -1,15 +1,14 @@
-package utils_test
+package utils
 
 import (
 	"testing"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/urbpeti/actions-automatic-cancel/utils"
 )
 
 func TestVerifyGithubWebhookRequest(t *testing.T) {
 	t.Run("Missing signature", func(t *testing.T) {
-		err := utils.VerifyGithubWebhookRequest(events.APIGatewayProxyRequest{}, "secret")
+		err := VerifyGithubWebhookRequest(events.APIGatewayProxyRequest{}, "secret")
 
 		if err == nil {
 			t.Errorf("Missing error")
@@ -20,7 +19,7 @@ func TestVerifyGithubWebhookRequest(t *testing.T) {
 	})
 
 	t.Run("Bad signature format", func(t *testing.T) {
-		err := utils.VerifyGithubWebhookRequest(events.APIGatewayProxyRequest{
+		err := VerifyGithubWebhookRequest(events.APIGatewayProxyRequest{
 			Headers: map[string]string{
 				"X-Hub-Signature": "sha1",
 			}}, "secret")
@@ -34,7 +33,7 @@ func TestVerifyGithubWebhookRequest(t *testing.T) {
 	})
 
 	t.Run("Signature decode err", func(t *testing.T) {
-		err := utils.VerifyGithubWebhookRequest(events.APIGatewayProxyRequest{
+		err := VerifyGithubWebhookRequest(events.APIGatewayProxyRequest{
 			Headers: map[string]string{
 				"X-Hub-Signature": "sha1=badsign",
 			}}, "secret")
@@ -48,7 +47,7 @@ func TestVerifyGithubWebhookRequest(t *testing.T) {
 	})
 
 	t.Run("Signature missmatch", func(t *testing.T) {
-		err := utils.VerifyGithubWebhookRequest(events.APIGatewayProxyRequest{
+		err := VerifyGithubWebhookRequest(events.APIGatewayProxyRequest{
 			Headers: map[string]string{
 				"X-Hub-Signature": "sha1=d37e24f84c53a5c2a510694205749219447d494a",
 			}}, "secret")
@@ -62,7 +61,7 @@ func TestVerifyGithubWebhookRequest(t *testing.T) {
 	})
 
 	t.Run("Valid signature", func(t *testing.T) {
-		err := utils.VerifyGithubWebhookRequest(events.APIGatewayProxyRequest{
+		err := VerifyGithubWebhookRequest(events.APIGatewayProxyRequest{
 			Headers: map[string]string{
 				"X-Hub-Signature": "sha1=2486c8590c396f876a46fb541e57fb3f9f276052",
 			},

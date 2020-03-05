@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/urbpeti/actions-automatic-cancel/lib"
+	"gopkg.in/h2non/gock.v1"
 )
 
 type MockGithubAPI struct {
@@ -299,6 +301,182 @@ func TestAutomaticCancel(t *testing.T) {
 		expectedCancelID = 1
 		if cancelCalls[1].ID != expectedCancelID {
 			t.Errorf("Expected cancel ID: %d actual: %d", expectedCancelID, cancelCalls[1].ID)
+		}
+	})
+}
+
+func TestIntegrationHandleRequest(t *testing.T) {
+	canceler := AutomaticCancel{
+		GithubAPI: &lib.GithubAPI{
+			Organization: "org",
+			Repository:   "repo",
+			Token:        "dummytoken",
+		},
+		WebHookSecret: "secret",
+	}
+
+	t.Run("Bad signature", func(t *testing.T) {
+		res, err := canceler.HandleRequest(events.APIGatewayProxyRequest{
+			Body: "dummy",
+			Headers: map[string]string{
+				"X-Hub-Signature": "sha1=0000000000000000000000000000000000000000",
+			},
+		})
+
+		if err != nil {
+			t.Errorf("Error occured")
+		}
+		if res.Body != "Signature missmatch" {
+			t.Errorf("Bad body: %s", res.Body)
+		}
+	})
+
+	t.Run("Workflow list endpoint error", func(t *testing.T) {
+		defer gock.Off()
+
+		gock.New("https://api.github.com").
+			Get("/repos/org/repo/actions/runs").
+			MatchHeader("Authorization", "token dummytoken").
+			ReplyError(fmt.Errorf("Server error"))
+
+		_, err := canceler.HandleRequest(events.APIGatewayProxyRequest{
+			Body: "dummy",
+			Headers: map[string]string{
+				"X-Hub-Signature": "sha1=2486c8590c396f876a46fb541e57fb3f9f276052",
+			},
+		})
+
+		if err == nil {
+			t.Errorf("Missing error")
+		} else if !strings.Contains(err.Error(), "Server error") {
+			t.Errorf("Bad error: %s", err.Error())
+		}
+
+		if !gock.IsDone() {
+			t.Errorf("Endpoinds was not called")
+		}
+	})
+
+	t.Run("Cancels a workspace", func(t *testing.T) {
+		defer gock.Off()
+
+		expectedRuns := []lib.WorkflowRun{
+			lib.WorkflowRun{
+				ID:         1,
+				CreatedAt:  time.Date(2020, 02, 29, 0, 0, 0, 0, time.UTC),
+				HeadBranch: "master",
+				Status:     "running",
+				CancelURL:  "https://api.github.com/org/repo/cancel/1",
+			},
+			lib.WorkflowRun{
+				ID:         2,
+				CreatedAt:  time.Date(2020, 02, 29, 0, 0, 0, 1, time.UTC),
+				HeadBranch: "master",
+				Status:     "running",
+				CancelURL:  "https://api.github.com/org/repo/cancel/2",
+			},
+		}
+		apiReply, err := json.Marshal(lib.WorkflowRunAPIResponse{
+			TotalCount:   2,
+			WorkflowRuns: expectedRuns,
+		})
+
+		if err != nil {
+			t.Errorf("Json marshal failed with %s", err.Error())
+		}
+
+		gock.New("https://api.github.com").
+			Get("/repos/org/repo/actions/runs").
+			MatchHeader("Authorization", "token dummytoken").
+			Reply(200).
+			JSON(apiReply)
+
+		gock.New("https://api.github.com").
+			Post("/org/repo/cancel/1").
+			MatchHeader("Authorization", "token dummytoken").
+			Reply(http.StatusAccepted)
+
+		res, err := canceler.HandleRequest(events.APIGatewayProxyRequest{
+			Body: "dummy",
+			Headers: map[string]string{
+				"X-Hub-Signature": "sha1=2486c8590c396f876a46fb541e57fb3f9f276052",
+			},
+		})
+		if err != nil {
+			t.Errorf("Error occured: %s", err.Error())
+		}
+		if res.StatusCode != http.StatusOK {
+			t.Errorf("Expected status %d actual %d", http.StatusOK, res.StatusCode)
+		}
+		if !gock.IsDone() {
+			t.Errorf("Endpoinds was not called")
+		}
+	})
+
+	t.Run("One of the cancels fails", func(t *testing.T) {
+		defer gock.Off()
+
+		expectedRuns := []lib.WorkflowRun{
+			lib.WorkflowRun{
+				ID:         1,
+				CreatedAt:  time.Date(2020, 02, 29, 0, 0, 0, 0, time.UTC),
+				HeadBranch: "master",
+				Status:     "running",
+				CancelURL:  "https://api.github.com/org/repo/cancel/1",
+			},
+			lib.WorkflowRun{
+				ID:         2,
+				CreatedAt:  time.Date(2020, 02, 29, 0, 0, 0, 1, time.UTC),
+				HeadBranch: "master",
+				Status:     "running",
+				CancelURL:  "https://api.github.com/org/repo/cancel/2",
+			},
+			lib.WorkflowRun{
+				ID:         3,
+				CreatedAt:  time.Date(2020, 02, 29, 0, 0, 0, 2, time.UTC),
+				HeadBranch: "master",
+				Status:     "running",
+				CancelURL:  "https://api.github.com/org/repo/cancel/3",
+			},
+		}
+		apiReply, err := json.Marshal(lib.WorkflowRunAPIResponse{
+			TotalCount:   3,
+			WorkflowRuns: expectedRuns,
+		})
+
+		if err != nil {
+			t.Errorf("Json marshal failed with %s", err.Error())
+		}
+
+		gock.New("https://api.github.com").
+			Get("/repos/org/repo/actions/runs").
+			MatchHeader("Authorization", "token dummytoken").
+			Reply(200).
+			JSON(apiReply)
+
+		gock.New("https://api.github.com").
+			Post("/org/repo/cancel/1").
+			MatchHeader("Authorization", "token dummytoken").
+			Reply(http.StatusAccepted)
+		gock.New("https://api.github.com").
+			Post("/org/repo/cancel/2").
+			MatchHeader("Authorization", "token dummytoken").
+			ReplyError(fmt.Errorf("Server error"))
+
+		res, err := canceler.HandleRequest(events.APIGatewayProxyRequest{
+			Body: "dummy",
+			Headers: map[string]string{
+				"X-Hub-Signature": "sha1=2486c8590c396f876a46fb541e57fb3f9f276052",
+			},
+		})
+		if err != nil {
+			t.Errorf("Error occured: %s", err.Error())
+		}
+		if res.StatusCode != http.StatusOK {
+			t.Errorf("Expected status %d actual %d", http.StatusOK, res.StatusCode)
+		}
+		if !gock.IsDone() {
+			t.Errorf("Endpoinds was not called")
 		}
 	})
 }
